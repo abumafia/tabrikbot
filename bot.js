@@ -68,7 +68,7 @@ bot.on('message', (msg) => {
   const text = msg.text;
 
   if (text === '👥 Mening referallarim') {
-    const link = `https://t.me/YOUR_BOT_USERNAME?start=${userId}`;
+    const link = `https://t.me/tabriklar_bot_uzbot?start=${userId}`;
     const count = (referrals[userId]?.invites || []).length;
 
     bot.sendMessage(userId, `🔗 Referral havolangiz: ${link}\n👥 Taklif qilganlaringiz soni: ${count}`);
