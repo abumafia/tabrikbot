@@ -8,7 +8,7 @@ const app = express();
 const TOKEN = process.env.TELEGRAM_TOKEN || '7624885474:AAHj1FolBwjGBN3xLlSf7JECxoLLAyChRYk';
 const URL = process.env.APP_URL || 'https://tabrikbot.onrender.com';
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'your_mongo_connection_string'; // MongoDB connection URI
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://tabrikbot:tabrikbot@tabrikbot.iqoka2n.mongodb.net/?retryWrites=true&w=majority&appName=tabrikbot'; // MongoDB connection URI
 
 // MongoDB connection
 mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
