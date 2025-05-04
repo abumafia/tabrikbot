@@ -6,7 +6,7 @@ const app = express();
 
 // Muhit o'zgaruvchilari
 const TOKEN = process.env.TELEGRAM_TOKEN || '7624885474:AAHj1FolBwjGBN3xLlSf7JECxoLLAyChRYk';
-const URL = process.env.APP_URL || 'https://ref3-1.onrender.com';
+const URL = process.env.APP_URL || 'https://tabrikbot.onrender.com';
 const PORT = process.env.PORT || 3000; // Render platformasida portni shu tarzda olamiz
 
 const REFERRALS_FILE = 'referrals.json';
