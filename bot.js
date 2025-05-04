@@ -1,33 +1,32 @@
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const bodyParser = require('body-parser');
-const fs = require('fs');
+const mongoose = require('mongoose');
 const app = express();
 
-// Muhit o'zgaruvchilari (TOKEN va URL ni .env fayldan olish tavsiya qilinadi)
+// Muhit o'zgaruvchilari
 const TOKEN = process.env.TELEGRAM_TOKEN || '7624885474:AAHj1FolBwjGBN3xLlSf7JECxoLLAyChRYk';
-const URL = process.env.APP_URL || 'https://ref3-1.onrender.com';
+const URL = process.env.APP_URL || 'https://tabrikbot.onrender.com';
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'your_mongo_connection_string'; // MongoDB connection URI
 
-const REFERRALS_FILE = 'referrals.json';
-let referrals = {};
+// MongoDB connection
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.log('MongoDB connection error:', err));
 
-// Referral faylidan ma'lumotni yuklash
-if (fs.existsSync(REFERRALS_FILE)) {
-  referrals = JSON.parse(fs.readFileSync(REFERRALS_FILE));
-}
+// MongoDB schema and model
+const referralSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true },
+  invitedBy: { type: String, default: null },
+  invites: { type: [String], default: [] },
+});
 
-// Referralni saqlovchi funksiya
-function saveReferrals() {
-  fs.writeFileSync(REFERRALS_FILE, JSON.stringify(referrals, null, 2));
-}
+const Referral = mongoose.model('Referral', referralSchema);
 
 // Botni webhook bilan ishga tushirish
-const bot = new TelegramBot(TOKEN, {
-    webHook: {
-      port: PORT,
-    },
-  });  
+const bot = new TelegramBot(TOKEN);
+bot.setWebHook(`${URL}/bot${TOKEN}`);
 
 app.use(bodyParser.json());
 
@@ -38,43 +37,61 @@ app.post(`/bot${TOKEN}`, (req, res) => {
 });
 
 // /start komandasi bilan referralni ishlatish
-bot.onText(/\/start(?:\s+(\d+))?/, (msg, match) => {
+bot.onText(/\/start(?:\s+(\d+))?/, async (msg, match) => {
   const userId = msg.from.id.toString();
   const referrerId = match[1];
 
-  if (!referrals[userId]) {
-    referrals[userId] = { invitedBy: referrerId || null, invites: [] };
+  try {
+    let user = await Referral.findOne({ userId });
 
-    if (referrerId && referrals[referrerId]) {
-      referrals[referrerId].invites.push(userId);
+    if (!user) {
+      // Create a new user
+      user = new Referral({
+        userId,
+        invitedBy: referrerId || null,
+      });
 
-      bot.sendMessage(referrerId, `🎉 Siz yangi foydalanuvchini taklif qildingiz: @${msg.from.username || userId}`);
-      bot.sendMessage(userId, `👋 Sizni @${referrerId} taklif qildi!`);
+      if (referrerId) {
+        const referrer = await Referral.findOne({ userId: referrerId });
+        if (referrer) {
+          referrer.invites.push(userId);
+          await referrer.save();
+        }
+        bot.sendMessage(referrerId, `🎉 Siz yangi foydalanuvchini taklif qildingiz: @${msg.from.username || userId}`);
+        bot.sendMessage(userId, `👋 Sizni @${referrerId} taklif qildi!`);
+      }
+
+      await user.save();
     }
 
-    saveReferrals();
+    const keyboard = {
+      keyboard: [['👥 Mening referallarim'], ['📱 Aplikatsiya'], ['❓ Yordam']],
+      resize_keyboard: true,
+    };
+
+    bot.sendMessage(userId, `Assalomu alaykum, ${msg.from.first_name || 'do‘st'}!`, {
+      reply_markup: keyboard,
+    });
+  } catch (err) {
+    console.error(err);
   }
-
-  const keyboard = {
-    keyboard: [['👥 Mening referallarim'], ['📱 Aplikatsiya'], ['❓ Yordam']],
-    resize_keyboard: true,
-  };
-
-  bot.sendMessage(userId, `Assalomu alaykum, ${msg.from.first_name || 'do‘st'}!`, {
-    reply_markup: keyboard,
-  });
 });
 
 // Oddiy tugmalar uchun ishlovchi qism
-bot.on('message', (msg) => {
+bot.on('message', async (msg) => {
   const userId = msg.from.id.toString();
   const text = msg.text;
 
   if (text === '👥 Mening referallarim') {
-    const link = `https://t.me/YOUR_BOT_USERNAME?start=${userId}`;
-    const count = (referrals[userId]?.invites || []).length;
+    try {
+      const user = await Referral.findOne({ userId });
+      const link = `https://t.me/tabriklar_bot_uzbot?start=${userId}`;
+      const count = user ? user.invites.length : 0;
 
-    bot.sendMessage(userId, `🔗 Referral havolangiz: ${link}\n👥 Taklif qilganlaringiz soni: ${count}`);
+      bot.sendMessage(userId, `🔗 Referral havolangiz: ${link}\n👥 Taklif qilganlaringiz soni: ${count}`);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   if (text === '📱 Aplikatsiya') {
@@ -87,20 +104,25 @@ bot.on('message', (msg) => {
 });
 
 // Admin uchun broadcast komandasi
-bot.onText(/\/broadcast (.+)/, (msg, match) => {
+bot.onText(/\/broadcast (.+)/, async (msg, match) => {
   const adminId = 6606638731;
   if (msg.from.id !== adminId) return;
 
   const message = match[1];
-  Object.keys(referrals).forEach(uid => {
-    bot.sendMessage(uid, `📢 E'lon: ${message}`).catch(() => {});
-  });
 
-  bot.sendMessage(adminId, '✅ Hamma foydalanuvchilarga yuborildi.');
+  try {
+    const users = await Referral.find();
+    users.forEach((user) => {
+      bot.sendMessage(user.userId, `📢 E'lon: ${message}`).catch(() => {});
+    });
+
+    bot.sendMessage(adminId, '✅ Hamma foydalanuvchilarga yuborildi.');
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 // Express serverni ishga tushirish
 app.listen(PORT, () => {
-    bot.setWebHook(`${URL}/bot${TOKEN}`);
-    console.log(`🚀 Bot webhook rejimida port ${PORT} da ishlayapti`);
-  });  
+  console.log(`🚀 Bot webhook rejimida port ${PORT} da ishlayapti`);
+});
