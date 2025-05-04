@@ -4,10 +4,10 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const app = express();
 
-// Muhit o'zgaruvchilari (TOKEN va URL ni .env fayldan olish tavsiya qilinadi)
+// Muhit o'zgaruvchilari
 const TOKEN = process.env.TELEGRAM_TOKEN || '7624885474:AAHj1FolBwjGBN3xLlSf7JECxoLLAyChRYk';
 const URL = process.env.APP_URL || 'https://ref3-1.onrender.com';
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Render platformasida portni shu tarzda olamiz
 
 const REFERRALS_FILE = 'referrals.json';
 let referrals = {};
@@ -23,11 +23,8 @@ function saveReferrals() {
 }
 
 // Botni webhook bilan ishga tushirish
-const bot = new TelegramBot(TOKEN, {
-    webHook: {
-      port: PORT,
-    },
-  });  
+const bot = new TelegramBot(TOKEN);
+bot.setWebHook(`${URL}/bot${TOKEN}`);
 
 app.use(bodyParser.json());
 
@@ -101,6 +98,5 @@ bot.onText(/\/broadcast (.+)/, (msg, match) => {
 
 // Express serverni ishga tushirish
 app.listen(PORT, () => {
-    bot.setWebHook(`${URL}/bot${TOKEN}`);
-    console.log(`🚀 Bot webhook rejimida port ${PORT} da ishlayapti`);
-  });  
+  console.log(`🚀 Bot webhook rejimida port ${PORT} da ishlayapti`);
+});
