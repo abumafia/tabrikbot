@@ -906,7 +906,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction) {
   // Render.com uchun webhook
-  bot.telegram.setWebhook(`https://your-render-domain.onrender.com/bot`); // Render URL ni o'zgartiring
+  bot.telegram.setWebhook(`https://tabrikbot-cxc3.onrender.com/bot`); // Render URL ni o'zgartiring
   app.listen(PORT, () => {
     console.log(`Server ${PORT} portda ishga tushdi (webhook mode)`);
   });
